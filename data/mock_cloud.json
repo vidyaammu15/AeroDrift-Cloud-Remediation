@@ -1,0 +1,71 @@
+{
+    "vpcs": [
+        {
+            "id": "vpc-001",
+            "name": "AeroDrift-VPC",
+            "cidr": "10.0.0.0/16"
+        }
+    ],
+    "subnets": [
+        {
+            "id": "subnet-public",
+            "name": "Public-Subnet",
+            "vpc_id": "vpc-001",
+            "cidr": "10.0.1.0/24",
+            "type": "public"
+        },
+        {
+            "id": "subnet-private",
+            "name": "Private-Subnet",
+            "vpc_id": "vpc-001",
+            "cidr": "10.0.2.0/24",
+            "type": "private"
+        }
+    ],
+    "security_groups": [
+        {
+            "id": "sg-web",
+            "name": "Web-Security-Group",
+            "vpc_id": "vpc-001",
+            "rules": [
+                {
+                    "protocol": "tcp",
+                    "port": 80,
+                    "source": "0.0.0.0/0"
+                }
+            ]
+        },
+        {
+            "id": "sg-db",
+            "name": "Database-Security-Group",
+            "vpc_id": "vpc-001",
+            "rules": [
+                {
+                    "protocol": "tcp",
+                    "port": 3306,
+                    "source": "sg-web"
+                }
+            ]
+        }
+    ],
+    "instances": [
+        {
+            "id": "i-web-001",
+            "name": "Web-Server",
+            "vpc_id": "vpc-001",
+            "subnet_id": "subnet-public",
+            "security_group_ids": [
+                "sg-web"
+            ]
+        },
+        {
+            "id": "i-db-001",
+            "name": "Database-Server",
+            "vpc_id": "vpc-001",
+            "subnet_id": "subnet-private",
+            "security_group_ids": [
+                "sg-db"
+            ]
+        }
+    ]
+}
