@@ -68,8 +68,6 @@ The system detects the public ingress rule and reports the database exposure as 
 
 **Outcome:** The local simulation detected the introduced public database rule within the 5-second target.
 
-> **Note:** The recorded detection time is from a local simulation. It is not a measurement from a live AWS environment.
-
 ### Overall Progress Up to Mid-Project Review
 
 - **Week 1:** Cloud data collection and topology modeling completed.
