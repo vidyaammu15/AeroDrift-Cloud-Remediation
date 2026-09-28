@@ -1,3 +1,5 @@
+AeroDrift: Agentic Cloud Topology & Remediation
+AeroDrift is a Python-based cloud security project focused on cloud infrastructure monitoring, configuration drift detection, and network exposure analysis.
 ## Week-wise Project Progress Report
 
 ### Week 1: Cloud Data Collection and Topology Modeling
