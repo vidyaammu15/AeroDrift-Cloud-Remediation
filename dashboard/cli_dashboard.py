@@ -8,14 +8,18 @@ class AeroDriftDashboard:
     def __init__(self):
         self.console = Console()
 
-    def show_topology(self, graph):
-        tree = Tree("[bold]AeroDrift Cloud Topology[/bold]")
+    def show_topology(self, graph, risky_groups=None):
+        risky_groups = set(risky_groups or [])
 
+        tree = Tree("[bold]AeroDrift Cloud Topology[/bold]")
         internet = tree.add("INTERNET")
 
         for sg in graph.nodes:
             if graph.nodes[sg].get("type") == "SECURITY_GROUP":
-                sg_branch = internet.add(sg)
+                if sg in risky_groups:
+                    sg_branch = internet.add(f"[bold red]{sg} [CRITICAL][/bold red]")
+                else:
+                    sg_branch = internet.add(sg)
 
                 for instance in graph.successors(sg):
                     if graph.nodes[instance].get("type") == "EC2":
@@ -32,11 +36,15 @@ class AeroDriftDashboard:
         table.add_column("Message")
 
         for risk in database_risks:
+            critical = risk["severity"].upper() == "CRITICAL"
+
+            style = "bold red" if critical else "yellow"
+
             table.add_row(
-                risk["security_group"],
-                str(risk["port"]),
-                risk["severity"],
-                risk["message"]
+                f"[{style}]{risk['security_group']}[/{style}]",
+                f"[{style}]{risk['port']}[/{style}]",
+                f"[{style}]{risk['severity']}[/{style}]",
+                f"[{style}]{risk['message']}[/{style}]"
             )
 
         self.console.print(table)

@@ -1,3 +1,4 @@
+
 import json
 import time
 import sys
@@ -11,8 +12,9 @@ from drift.drift_detector import DriftDetector
 DATA_DIR = ROOT_DIR / "data"
 BASELINE_FILE = DATA_DIR / "baseline_cloud.json"
 LIVE_FILE = DATA_DIR / "simulated_live_cloud.json"
+EVENT_FILE = DATA_DIR / "simulation_event.json"
 
-POLL_INTERVAL = 1
+POLL_INTERVAL = 0.1
 
 
 def load_json(path):
@@ -24,27 +26,37 @@ def main():
     print("\nAeroDrift Detection Monitor")
     print("=" * 45)
     print(f"Watching: {LIVE_FILE}")
-    print(f"Polling interval: {POLL_INTERVAL} second(s)")
+    print(f"Polling interval: {POLL_INTERVAL} seconds")
     print("Press Ctrl+C to stop.\n")
 
+    # Ignore events that happened before monitoring began.
+    startup_time = time.time()
     last_signature = None
+    last_event_timestamp = startup_time
 
     try:
         while True:
-            if LIVE_FILE.exists():
+            if LIVE_FILE.exists() and EVENT_FILE.exists():
                 baseline = load_json(BASELINE_FILE)
                 current = load_json(LIVE_FILE)
+                event = load_json(EVENT_FILE)
+
+                event_time = event.get("timestamp", 0)
+                action = event.get("action", "")
 
                 detector = DriftDetector(baseline, current)
                 drifts = detector.detect_security_group_drift()
 
-                if drifts:
+                if action == "public_rule_added" and drifts:
                     signature = json.dumps(drifts, sort_keys=True)
 
-                    if signature != last_signature:
+                    if (
+                        signature != last_signature
+                        and event_time >= startup_time
+                        and event_time > last_event_timestamp
+                    ):
                         detected_at = time.time()
-                        changed_at = LIVE_FILE.stat().st_mtime
-                        elapsed = max(0, detected_at - changed_at)
+                        elapsed = max(0, detected_at - event_time)
 
                         print("\n" + "=" * 45)
                         print("AeroDrift: Cloud Change Detected")
@@ -62,12 +74,16 @@ def main():
                         if elapsed < 5:
                             print("PASS: Detection completed under 5 seconds.")
                         else:
-                            print("CHECK: Detection took 5 seconds or longer.")
+                            print("FAIL: Detection took 5 seconds or longer.")
 
                         last_signature = signature
+                        last_event_timestamp = event_time
 
-                else:
+                elif action == "public_rule_removed" or not drifts:
                     last_signature = None
+                    last_event_timestamp = max(
+                        last_event_timestamp, event_time
+                    )
 
             time.sleep(POLL_INTERVAL)
 
