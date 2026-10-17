@@ -6,3 +6,6 @@ __pycache__/
 *.db
 
 data/simulation_event.json
+
+# Generated incident reports
+reports/*.pdf

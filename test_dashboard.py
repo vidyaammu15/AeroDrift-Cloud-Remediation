@@ -16,6 +16,6 @@ dashboard = AeroDriftDashboard()
 
 print("\nAeroDrift CLI Dashboard")
 print("=" * 50)
-
 dashboard.show_topology(graph, risky_groups)
 dashboard.show_risk(risks)
+dashboard.show_history()
