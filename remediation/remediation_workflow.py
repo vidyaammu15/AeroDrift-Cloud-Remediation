@@ -2,24 +2,39 @@ import json
 import sys
 from pathlib import Path
 
-import remediation_executor
-from remediation_executor import remediate_public_ingress
-from remediation_generator import generate_remediation
-from audit_logger import log_event
+try:
+    from . import remediation_executor
+    from .remediation_executor import remediate_public_ingress
+    from .remediation_generator import generate_remediation
+    from .audit_logger import log_event
+    from .rollback_manager import create_backup
+    from .audited_rollback import audited_rollback
+except ImportError:
+    import remediation_executor
+    from remediation_executor import remediate_public_ingress
+    from remediation_generator import generate_remediation
+    from audit_logger import log_event
+    from rollback_manager import create_backup
+    from audited_rollback import audited_rollback
 
 
 def run_workflow(data_file=None, audit_db=None):
     target_file = (
         Path(data_file) if data_file
-        else remediation_executor.DATA_FILE
+        else Path(remediation_executor.DATA_FILE)
     )
     original_executor_file = remediation_executor.DATA_FILE
-    audit_options = {"db_path": audit_db} if audit_db else {}
+    audit_options = {"audit_db": audit_db} if audit_db else {}
+
+    backup_file = target_file.with_name(
+        target_file.stem + ".remediation-backup.json"
+    )
+    log_options = {"db_path": audit_db} if audit_db else {}
 
     try:
         remediation_executor.DATA_FILE = target_file
-
         data = json.loads(target_file.read_text(encoding="utf-8"))
+
         group = next(
             (g for g in data.get("security_groups", [])
              if g.get("id") == "sg-db"),
@@ -29,8 +44,9 @@ def run_workflow(data_file=None, audit_db=None):
         if group is None:
             log_event(
                 "WORKFLOW_ERROR", "sg-db", 3306,
-                result="FAIL", details="Security group not found",
-                **audit_options,
+                result="FAIL",
+                details="Security group not found",
+                **log_options,
             )
             print("ERROR: sg-db not found.")
             return False
@@ -47,7 +63,7 @@ def run_workflow(data_file=None, audit_db=None):
                 "RISK_CHECK", "sg-db", 3306,
                 result="PASS",
                 details="No public TCP 3306 rule detected",
-                **audit_options,
+                **log_options,
             )
             print("No public TCP 3306 rule detected. No remediation needed.")
             return True
@@ -56,8 +72,9 @@ def run_workflow(data_file=None, audit_db=None):
             "RISK_DETECTED", "sg-db", 3306,
             result="CRITICAL",
             details="Public database ingress detected",
-            **audit_options,
+            **log_options,
         )
+
         print("Detected public database exposure.")
         print("\nGenerated remediation plan:")
         print(generate_remediation("sg-db", 3306, "0.0.0.0/0"))
@@ -71,19 +88,28 @@ def run_workflow(data_file=None, audit_db=None):
                 "APPROVAL_REJECTED", "sg-db", 3306,
                 approved=False, result="CANCELLED",
                 details="User did not approve remediation",
-                **audit_options,
+                **log_options,
             )
             print("Remediation cancelled.")
             return False
+
+        # Save the original configuration before making changes.
+        create_backup(target_file, backup_file)
+        log_event(
+            "BACKUP_CREATED", "sg-db", 3306,
+            approved=True, result="PASS",
+            details=f"Backup: {backup_file.name}",
+            **log_options,
+        )
+        print("Backup created:", backup_file.name)
 
         log_event(
             "APPROVAL_GRANTED", "sg-db", 3306,
             approved=True, result="APPROVED",
             details="User approved simulated remediation",
-            **audit_options,
+            **log_options,
         )
 
-        changed = False
         try:
             changed = remediate_public_ingress(
                 "sg-db", 3306, approved=True
@@ -93,7 +119,7 @@ def run_workflow(data_file=None, audit_db=None):
                 "REMEDIATION_EXECUTED", "sg-db", 3306,
                 approved=True, result="ERROR",
                 details=f"{type(exc).__name__}: {exc}",
-                **audit_options,
+                **log_options,
             )
             raise
 
@@ -102,7 +128,7 @@ def run_workflow(data_file=None, audit_db=None):
             approved=True,
             result="CHANGED" if changed else "NO_CHANGE",
             details="Simulated executor returned",
-            **audit_options,
+            **log_options,
         )
 
         updated = json.loads(target_file.read_text(encoding="utf-8"))
@@ -111,8 +137,8 @@ def run_workflow(data_file=None, audit_db=None):
              if g.get("id") == "sg-db"),
             None,
         )
-
         rules = updated_group.get("rules", []) if updated_group else []
+
         still_public = any(
             r.get("protocol") == "tcp"
             and r.get("port") == 3306
@@ -139,13 +165,28 @@ def run_workflow(data_file=None, audit_db=None):
                 f"public_rule_absent={not still_public}; "
                 f"web_rule_preserved={web_rule_preserved}"
             ),
-            **audit_options,
+            **log_options,
         )
 
         print("Public rule removed:", not still_public)
         print("Web rule preserved:", web_rule_preserved)
         print("Final verification:", "PASS" if passed else "FAIL")
-        return passed
+
+        if not passed:
+            rollback_approval = input(
+                "Verification failed. Approve rollback? (yes/no): "
+            ).strip().lower()
+
+            restored = audited_rollback(
+                target_file,
+                backup_file,
+                approved=(rollback_approval == "yes"),
+                audit_db=audit_db,
+            )
+            print("Rollback result:", "PASS" if restored else "NOT COMPLETED")
+            return False
+
+        return True
 
     finally:
         remediation_executor.DATA_FILE = original_executor_file

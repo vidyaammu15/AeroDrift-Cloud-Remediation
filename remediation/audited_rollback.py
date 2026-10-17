@@ -1,7 +1,11 @@
 ﻿from pathlib import Path
 
-from remediation.rollback_manager import rollback
-from remediation.audit_logger import log_event
+try:
+    from .rollback_manager import rollback
+    from .audit_logger import log_event
+except ImportError:
+    from rollback_manager import rollback
+    from audit_logger import log_event
 
 
 def audited_rollback(data_file, backup_file, approved=False, audit_db=None):
