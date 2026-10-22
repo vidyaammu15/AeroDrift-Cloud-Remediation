@@ -2,6 +2,9 @@ import json
 import sys
 from pathlib import Path
 
+from graph.topology import CloudTopology
+from history.topology_store import save_snapshot
+
 try:
     from . import remediation_executor
     from .remediation_executor import remediate_public_ingress
@@ -66,6 +69,35 @@ def run_workflow(data_file=None, audit_db=None):
                 **log_options,
             )
             print("No public TCP 3306 rule detected. No remediation needed.")
+
+            try:
+                safe_cloud_data = json.loads(
+                    target_file.read_text(encoding="utf-8")
+                )
+                topology = CloudTopology()
+                graph = topology.build(safe_cloud_data)
+                snapshot_id = save_snapshot(
+                    graph,
+                    safe_cloud_data,
+                    source="remediation_workflow_no_remediation",
+                )
+                log_event(
+                    "SNAPSHOT_SAVED", "sg-db", 3306,
+                    approved=None, result="PASS",
+                    details=f"No-remediation snapshot ID: {snapshot_id}",
+                    **log_options,
+                )
+                print("Historical snapshot saved:", snapshot_id)
+            except Exception as exc:
+                log_event(
+                    "SNAPSHOT_SAVED", "sg-db", 3306,
+                    approved=None, result="ERROR",
+                    details=f"{type(exc).__name__}: {exc}",
+                    **log_options,
+                )
+                print("WARNING: Snapshot saving failed:", exc)
+                return False
+
             return True
 
         log_event(
@@ -185,6 +217,33 @@ def run_workflow(data_file=None, audit_db=None):
             )
             print("Rollback result:", "PASS" if restored else "NOT COMPLETED")
             return False
+
+        try:
+            final_cloud_data = json.loads(
+                target_file.read_text(encoding="utf-8")
+            )
+            topology = CloudTopology()
+            graph = topology.build(final_cloud_data)
+            snapshot_id = save_snapshot(
+                graph,
+                final_cloud_data,
+                source="remediation_workflow",
+            )
+            log_event(
+                "SNAPSHOT_SAVED", "sg-db", 3306,
+                approved=True, result="PASS",
+                details=f"Snapshot ID: {snapshot_id}",
+                **log_options,
+            )
+            print("Historical snapshot saved:", snapshot_id)
+        except Exception as exc:
+            log_event(
+                "SNAPSHOT_SAVED", "sg-db", 3306,
+                approved=True, result="ERROR",
+                details=f"{type(exc).__name__}: {exc}",
+                **log_options,
+            )
+            print("WARNING: Snapshot saving failed:", exc)
 
         return True
 
