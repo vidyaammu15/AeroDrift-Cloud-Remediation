@@ -243,7 +243,8 @@ def run_workflow(data_file=None, audit_db=None):
                 details=f"{type(exc).__name__}: {exc}",
                 **log_options,
             )
-            print("WARNING: Snapshot saving failed:", exc)
+            print("ERROR: Snapshot saving failed:", exc)
+            return False
 
         return True
 

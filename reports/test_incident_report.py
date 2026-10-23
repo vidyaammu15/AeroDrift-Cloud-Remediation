@@ -22,6 +22,9 @@ def main():
         database_risks=risks,
         snapshot_history=snapshots,
         output_path=output_file,
+        remediation_outcome="SUCCESS",
+        verification_status="PASS",
+        rollback_status="NOT_REQUIRED",
     )
 
     print("PDF report generated:", result)

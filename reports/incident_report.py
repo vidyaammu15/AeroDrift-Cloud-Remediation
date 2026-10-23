@@ -1,5 +1,6 @@
 ﻿from datetime import datetime, timezone
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -16,6 +17,9 @@ def generate_incident_report(
     snapshot_history=None,
     configuration_changes=None,
     output_path="reports/aerodrift_incident_report.pdf",
+    remediation_outcome="Not provided",
+    verification_status="Not provided",
+    rollback_status="Not provided",
 ):
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -144,7 +148,33 @@ def generate_incident_report(
 
     story.extend([
         Spacer(1, 6 * mm),
-        Paragraph("5. Recommended Actions", styles["Heading2"]),
+        Paragraph("5. Remediation Status", styles["Heading2"]),
+    ])
+
+    status_rows = [
+        ["Status Field", "Reported Result"],
+        ["Remediation Outcome", escape(str(remediation_outcome))],
+        ["Verification Status", escape(str(verification_status))],
+        ["Rollback Status", escape(str(rollback_status))],
+    ]
+
+    status_table = Table(
+        status_rows,
+        colWidths=[55 * mm, 115 * mm],
+        repeatRows=1,
+    )
+    status_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#163A5F")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(status_table)
+
+    story.extend([
+        Spacer(1, 6 * mm),
+        Paragraph("6. Recommended Actions", styles["Heading2"]),
         Paragraph(
             "• Remove public access from database ports such as TCP 3306.<br/>"
             "• Restrict database ingress to approved application security groups.<br/>"
