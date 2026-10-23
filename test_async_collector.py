@@ -3,7 +3,8 @@ from collector.aws_collector import AsyncAWSCollector
 
 
 async def main():
-    collector = AsyncAWSCollector()
+    # Bypass AWS client creation so this unit test needs no credentials.
+    collector = AsyncAWSCollector.__new__(AsyncAWSCollector)
 
     collector.get_vpcs = lambda: [{"VpcId": "vpc-001"}]
 

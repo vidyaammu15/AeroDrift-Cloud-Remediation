@@ -1,9 +1,16 @@
-﻿import json
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from remediation_executor import remediate_public_ingress
+from remediation.remediation_executor import remediate_public_ingress
 
 test_data = {
     "security_groups": [
@@ -21,7 +28,7 @@ with tempfile.TemporaryDirectory() as folder:
     test_file = Path(folder) / "cloud.json"
     test_file.write_text(json.dumps(test_data), encoding="utf-8")
 
-    with patch("remediation_executor.DATA_FILE", test_file):
+    with patch("remediation.remediation_executor.DATA_FILE", test_file):
         changed = remediate_public_ingress(
             "sg-db", 3306, approved=True
         )
