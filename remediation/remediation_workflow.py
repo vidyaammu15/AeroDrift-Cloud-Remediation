@@ -4,6 +4,9 @@ from pathlib import Path
 
 from graph.topology import CloudTopology
 from history.topology_store import save_snapshot
+from reports.incident_report import generate_incident_report
+from history.topology_store import list_snapshots
+from drift.database_exposure import DatabaseExposureDetector
 
 try:
     from . import remediation_executor
@@ -19,6 +22,31 @@ except ImportError:
     from audit_logger import log_event
     from rollback_manager import create_backup
     from audited_rollback import audited_rollback
+
+
+
+def generate_workflow_report(
+    cloud_data,
+    remediation_outcome,
+    verification_status,
+    rollback_status="NOT_REQUIRED",
+    configuration_changes=None,
+):
+    """Generate an incident report from the supplied workflow results."""
+    try:
+        risks = DatabaseExposureDetector().detect(cloud_data)
+        snapshots = list_snapshots()
+        return generate_incident_report(
+            database_risks=risks,
+            snapshot_history=snapshots,
+            configuration_changes=configuration_changes or {},
+            remediation_outcome=remediation_outcome,
+            verification_status=verification_status,
+            rollback_status=rollback_status,
+        )
+    except Exception as exc:
+        print(f"ERROR: Incident report generation failed: {exc}")
+        return None
 
 
 def run_workflow(data_file=None, audit_db=None):
@@ -88,6 +116,16 @@ def run_workflow(data_file=None, audit_db=None):
                     **log_options,
                 )
                 print("Historical snapshot saved:", snapshot_id)
+
+                report_path = generate_workflow_report(
+                    safe_cloud_data,
+                    remediation_outcome="NOT_REQUIRED",
+                    verification_status="NOT_REQUIRED",
+                    rollback_status="NOT_REQUIRED",
+                )
+                if report_path is None:
+                    return False
+                print("Incident report generated:", report_path)
             except Exception as exc:
                 log_event(
                     "SNAPSHOT_SAVED", "sg-db", 3306,
@@ -236,6 +274,19 @@ def run_workflow(data_file=None, audit_db=None):
                 **log_options,
             )
             print("Historical snapshot saved:", snapshot_id)
+
+            report_path = generate_workflow_report(
+                data,
+                remediation_outcome="SUCCESS",
+                verification_status="PASS",
+                rollback_status="NOT_REQUIRED",
+                configuration_changes={
+                    "sg-db": {"before": group, "after": updated_group}
+                },
+            )
+            if report_path is None:
+                return False
+            print("Incident report generated:", report_path)
         except Exception as exc:
             log_event(
                 "SNAPSHOT_SAVED", "sg-db", 3306,
