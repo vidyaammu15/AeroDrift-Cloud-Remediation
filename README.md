@@ -79,3 +79,80 @@ The system detects the public ingress rule and reports the database exposure as 
 The project has completed its initial cloud topology, drift detection, exposure analysis, and simulated mid-review demonstration.
 
 **Environment Note:** The demonstrated tests use simulated cloud infrastructure. Live AWS security group modification and detection have not been validated in these results.
+Week 3: Remediation Planning and Safety Controls
+
+Status: Core simulation tests passed
+
+Objective: To validate remediation plans and prevent unsafe or unauthorized actions.
+
+Work Completed:
+
+Implemented remediation plan validation.
+
+Added checks for invalid plan formats, unexpected fields, unknown operations, and incorrect security group or port values.
+
+Required explicit approval before remediation execution.
+
+Implemented simulated removal of publicly exposed database ingress rules.
+
+Verified that the intended public rule was removed while the trusted web rule was preserved.
+
+Implemented audited rollback and tested approved and rejected rollback scenarios.
+
+Outcome: Remediation and rollback safety controls passed the available unit and integration tests in the simulated environment.
+
+Week 4: Historical Monitoring, Reporting, and Integration
+
+Status: Core workflow tests passed
+
+Objective: To maintain historical cloud configuration records and generate security incident reports.
+
+Work Completed:
+
+Implemented SQLite-based historical snapshot storage.
+
+Tested snapshot retrieval and configuration comparison.
+
+Integrated topology, drift, and exposure information into a command-line dashboard.
+
+Generated PDF incident reports.
+
+Integrated detection, simulated remediation, verification, snapshot recording, and incident reporting into an end-to-end workflow.
+
+Verified that the snapshot audit event was recorded.
+
+End-to-End Integration Test Results:
+
+Check
+
+Result
+
+Public database exposure detected
+
+PASS
+
+Simulated public rule removal
+
+PASS
+
+Trusted web rule preserved
+
+PASS
+
+Final verification
+
+PASS
+
+Historical snapshot saved
+
+PASS
+
+Snapshot audit event recorded
+
+PASS
+
+Incident PDF generated
+
+PASS
+
+Outcome: The end-to-end simulated remediation workflow completed successfully.
