@@ -178,11 +178,5 @@ The project has progressed through four major development phases:
 
 The reported unit and integration tests passed for the tested scenarios, including the 10 remediation and rollback tests and the end-to-end workflow integration test.
 
-### Project Limitations
-- The demonstrated end-to-end remediation workflow operates on simulated cloud configuration.
-- Live AWS resource modification has not been validated by the reported tests.
-- Live AWS connectivity checks are optional and require valid AWS credentials and permissions.
-- Test results demonstrate the behavior of the tested scenarios and do not establish exhaustive coverage of all cloud configurations or failure conditions.
-
 ### Conclusion
 AeroDrift demonstrates a simulated cloud security workflow that combines topology modeling, configuration drift detection, exposure analysis, approval-controlled remediation, rollback auditing, historical snapshot management, and incident reporting. The completed tests provide evidence that the implemented workflow operates as expected in the tested scenarios.
